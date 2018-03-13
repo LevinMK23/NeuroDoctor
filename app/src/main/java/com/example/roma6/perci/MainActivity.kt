@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
 
     var diagnosis: String = ""
     var mentions_list: ArrayList<mention>? = null
-    data class mention(val id: String, val orth:String, val choice_id: String, val name:String, val common_name:String, val type:String)
+    data class mention(val id: String, val orth:String, var choice_id: String, val name:String, val common_name:String, val type:String)
     var nlp_response = ""
     val QUESTIONS = arrayListOf("Вы мужчина или женщина?",
                             "Сколько вам лет?",
@@ -162,7 +162,7 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                     }
                     else if (current_question == 7 && translated === true){
                         ANSWERS.add(current_question, translated_text)
-                        requestToInfermdedicaApiNLP("headache high fever") //translated_text
+                        requestToInfermdedicaApiNLP(translated_text) //translated_text
                         //requestToInfermedicaApiDiagnosis()
                         translated = false
                     }
@@ -174,13 +174,15 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                         }
 
                     }
-                    else if (current_question>7){
+                    else if (current_question>7 && translated){
                         if (QUESTIONS[current_question] !=null){
                             if (recognized_text?.contains("да", true)!!){
                                     ANSWERS.add(current_question, "yes")
+                                    mentions_list?.last()?.choice_id = "present"
                                 }
                                 else{
                                     ANSWERS.add(current_question, "no")
+                                    mentions_list?.last()?.choice_id= "absent"
                                 }
                             requestToInfermedicaApiDiagnosis()
                         }
@@ -188,6 +190,9 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                             Toast.makeText(this@MainActivity, "Your diagnosis is " + diagnosis, Toast.LENGTH_LONG).show()
                         }
 
+                    }
+                    else{
+                        current_question--
                     }
 
                     //requestToYandexTranslateApi(LstText?.text?.toString() ?: "Текст отсутсвует", "ru-en")
@@ -197,8 +202,10 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                 }
                 else{
                     is_pulsing = true
+                    try{
                     vocalizerSpeak(QUESTIONS[current_question])
-                    createAndStartRecognizer()
+                    createAndStartRecognizer()}
+                    catch (e:Exception){}
                 }
             }
         }
@@ -246,10 +253,14 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                 diagnosis = diagnosisJsonArray?.getJSONObject(0)?.getString("common_name")!!
                 var question: JSONObject? = response?.get("question") as JSONObject?
                 var text_rs = question?.getString("text")?: ""
-                if (text_rs === ""){
+                if (text_rs !== "" && diagnosisJsonArray?.getJSONObject(0)?.getString("probability")?.toInt()!! <0.5){
+                    var item = question?.getJSONArray("items")?.getJSONObject(0)
+                    var ment:mention = mention(item?.getString("id")!!, "", "", item?.getString("name"), "", "")
+                    mentions_list!!.add(ment)
                     requestToYandexTranslateApi(text_rs, "en-ru", 1)}
                 else{
-                    requestToYandexTranslateApi(diagnosis, "en-ru")}
+                    requestToYandexTranslateApi(diagnosis, "en-ru", 1)
+                }
 //                var str:String = ""
 //                for (i in 0..(mentions.length() - 1)) {
 //                    val item = mentions.getJSONObject(i)
@@ -316,6 +327,7 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
 
     private fun requestToYandexTranslateApi(text:String, lang:String, A: Int = 0){
         val params = RequestParams()
+        translated = false
         var firstEvent:JSONObject? = null
         var tweetText = ""
         params.add("key", YANDEX_TRANSLATE_API_KEY)
@@ -329,7 +341,6 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                 translated_text = textjsonobj[0] as String
                 if (A===1){
                     QUESTIONS.add(translated_text!!)
-                    current_question++
                 }
                 translated = true
             }
@@ -339,7 +350,6 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                 Toast.makeText(this@MainActivity, firstEvent.toString()+"Array", Toast.LENGTH_LONG).show()
                 if (A===1){
                     QUESTIONS.add(tweetText)
-                    current_question++
                 }
                 translated_text = tweetText
                 Toast.makeText(this@MainActivity, tweetText, Toast.LENGTH_LONG).show()
