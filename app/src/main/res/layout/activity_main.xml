@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/mainBackgroundColor"
+    tools:context="com.example.roma6.perci.MainActivity">
+
+    <TextView
+        android:id="@+id/ListenText"
+        android:layout_width="237dp"
+        android:layout_height="79dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.159" />
+
+    <TextView
+        android:id="@+id/StatusText"
+        android:layout_width="184dp"
+        android:layout_height="52dp"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.478" />
+
+    <com.gigamole.library.PulseView
+        android:id="@+id/heartpulseview"
+        android:layout_width="match_parent"
+        android:layout_height="1000dp"
+        app:pv_alpha="80"
+        app:pv_color="@color/pvColor"
+        app:pv_icon="@drawable/hospital"
+        app:pv_icon_height="400dp"
+        app:pv_icon_width="400dp"
+        app:pv_interpolator="@android:anim/linear_interpolator"
+        app:pv_measure="height"
+        app:pv_spawn_period="1500"
+        tools:layout_editor_absoluteX="0dp"
+        tools:layout_editor_absoluteY="0dp"
+        tools:ignore="MissingConstraints" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="750dp"
+        >
+
+        <com.hitomi.cmlibrary.CircleMenu
+            android:scaleX="1"
+            android:scaleY="1"
+            android:id="@+id/circle_menu"
+            android:layout_width="match_parent"
+            android:layout_height="600dp" />
+    </LinearLayout>
+
+
+</android.support.constraint.ConstraintLayout>
