@@ -34,6 +34,7 @@ import java.lang.ref.SoftReference
 
 class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
 
+    var diagnosis: String = ""
     var mentions_list: ArrayList<mention>? = null
     data class mention(val id: String, val orth:String, val choice_id: String, val name:String, val common_name:String, val type:String)
     var nlp_response = ""
@@ -45,8 +46,8 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                             "Гипертензия?",
                             "Диабет?",
                             "Что вас беспокоит?")
-    val ANSWERS = arrayListOf<String>()
-    var current_question = 0
+    val ANSWERS = arrayListOf<String>("yes", "19", "no", "no", "no", "no", "no")
+    var current_question = 7
     var recognized = false
     var first_symptoms: String? = null
     var diabet = false
@@ -74,13 +75,14 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
     var translated_text:String = ""
     val INFERMEDICA_APP_KEY  = "fc0890164fe7c91b7da323e742104ab1"
     val INFERMEDICA_APP_ID = "584ec592"
+    var translated:Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         SpeechKit.getInstance().configure(this, API_KEY_SPEECHKIT)
         OnCreateActions()
-        requestToYandexTranslateApi("hello", "en-ru", 1)
+        //requestToYandexTranslateApi("hello", "en-ru", 1)
     }
 
 
@@ -129,7 +131,7 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                 ?.setOnMenuSelectedListener (
                     object: OnMenuSelectedListener{
                         override fun onMenuSelected(index:Int){
-                            requestToInfermedicaApiDiagnosis()
+                           // requestToInfermedicaApiDiagnosis()
                         }
                     }
                 )
@@ -138,7 +140,7 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
             override fun onClick(p0: View?) {
                 if (is_pulsing && recognized && recognized_text != "" && recognized_text != null){
                     is_pulsing = false
-                    if (current_question !=6 && current_question!=1 && current_question!=0){
+                    if (current_question!=1 && current_question!=0 && current_question <7){
                         if (recognized_text?.contains("да", true)!!){
                             ANSWERS.add(current_question, "yes")
                         }
@@ -154,14 +156,36 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                         }
                         }
 
-                    else if (current_question == 6){
-                        ANSWERS.add(current_question, recognized_text!!)
+                    else if (current_question == 7 && translated === false){
+                        requestToYandexTranslateApi(recognized_text!!, "ru-en")
+                        current_question--
+                    }
+                    else if (current_question == 7 && translated === true){
+                        ANSWERS.add(current_question, translated_text)
+                        requestToInfermdedicaApiNLP("headache high fever") //translated_text
+                        //requestToInfermedicaApiDiagnosis()
+                        translated = false
                     }
                     else if (current_question == 1){
                         if (extractNumber(recognized_text) == "")
                             current_question--
                         else{
                             ANSWERS.add(current_question, extractNumber(recognized_text))
+                        }
+
+                    }
+                    else if (current_question>7){
+                        if (QUESTIONS[current_question] !=null){
+                            if (recognized_text?.contains("да", true)!!){
+                                    ANSWERS.add(current_question, "yes")
+                                }
+                                else{
+                                    ANSWERS.add(current_question, "no")
+                                }
+                            requestToInfermedicaApiDiagnosis()
+                        }
+                        else{
+                            Toast.makeText(this@MainActivity, "Your diagnosis is " + diagnosis, Toast.LENGTH_LONG).show()
                         }
 
                     }
@@ -174,12 +198,12 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                 else{
                     is_pulsing = true
                     vocalizerSpeak(QUESTIONS[current_question])
-                    //createAndStartRecognizer()
+                    createAndStartRecognizer()
                 }
             }
         }
         )
-        requestToInfermdedicaApiNLP("i have headache and im coughing today")
+        //requestToInfermdedicaApiNLP("i have headache and im coughing today")
     }
 
 
@@ -209,17 +233,23 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
         val jsonentity = StringEntity(jsonparams.toString())
         httpclient.post(this@MainActivity, "https://api.infermedica.com/v2/diagnosis", jsonentity, "application/json", object:JsonHttpResponseHandler(){
 
-//            override fun onSuccess(statusCode: Int, headers: Array<out Header>?, response: JSONArray?) {
-//                val first:JSONObject = response?.get(0) as JSONObject
-//                val nlp_response_text = first?.getString("mentions")
-//                nlp_response = nlp_response_text
-//                Toast.makeText(this@MainActivity, nlp_response, Toast.LENGTH_LONG).show()
-//            }
+            override fun onSuccess(statusCode: Int, headers: Array<out Header>?, response: JSONArray?) {
+                val first:JSONObject = response?.get(0) as JSONObject
+                val nlp_response_text = first?.getString("mentions")
+                nlp_response = nlp_response_text
+                Toast.makeText(this@MainActivity, nlp_response, Toast.LENGTH_LONG).show()
+            }
 
             override fun onSuccess(statusCode: Int, headers: Array<out Header>?, response: JSONObject?) {
-                var question: JSONObject? = response?.getJSONObject("question")
+
+                var diagnosisJsonArray = response?.get("conditions") as JSONArray?
+                diagnosis = diagnosisJsonArray?.getJSONObject(0)?.getString("common_name")!!
+                var question: JSONObject? = response?.get("question") as JSONObject?
                 var text_rs = question?.getString("text")?: ""
-                requestToYandexTranslateApi(text_rs, "en-ru", 1)
+                if (text_rs === ""){
+                    requestToYandexTranslateApi(text_rs, "en-ru", 1)}
+                else{
+                    requestToYandexTranslateApi(diagnosis, "en-ru")}
 //                var str:String = ""
 //                for (i in 0..(mentions.length() - 1)) {
 //                    val item = mentions.getJSONObject(i)
@@ -262,6 +292,7 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
             override fun onSuccess(statusCode: Int, headers: Array<out Header>?, response: JSONObject?) {
                 var mentions: JSONArray = response?.getJSONArray("mentions")!!
                 var str:String = ""
+                Toast.makeText(this@MainActivity, mentions?.toString(), Toast.LENGTH_LONG).show()
                 for (i in 0..(mentions.length() - 1)) {
                     val item = mentions.getJSONObject(i)
                     var ment = mention(item?.getString("id")!!, item?.getString("orth")!!, item?.getString("choice_id")!!,
@@ -269,6 +300,7 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
                     mentions_list?.add(ment)
                     str+=ment.common_name+ ' '
                 }
+                requestToInfermedicaApiDiagnosis()
                 Toast.makeText(this@MainActivity, str, Toast.LENGTH_LONG).show()
             }
 
@@ -286,7 +318,6 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
         val params = RequestParams()
         var firstEvent:JSONObject? = null
         var tweetText = ""
-        var resp:JSONObject
         params.add("key", YANDEX_TRANSLATE_API_KEY)
         params.add("text", text)
         params.add("lang", lang)
@@ -294,25 +325,28 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
         YandexTranslateRest.post("", params, object:JsonHttpResponseHandler(){
             override fun onSuccess(statusCode:Int, headers:Array<Header>, response:JSONObject)
             {
-                resp = response
-                translated_text = response.getString("text")
+                var textjsonobj = response.getJSONArray("text")
+                translated_text = textjsonobj[0] as String
                 if (A===1){
                     QUESTIONS.add(translated_text!!)
+                    current_question++
                 }
-                Toast.makeText(this@MainActivity, tweetText, Toast.LENGTH_LONG).show()  
+                translated = true
             }
             override fun onSuccess(statusCode:Int, headers:Array<Header>, timeline:JSONArray) {
                 firstEvent = timeline.get(0) as JSONObject
-                resp = firstEvent as JSONObject
                 tweetText = firstEvent?.getString("text")!!
+                Toast.makeText(this@MainActivity, firstEvent.toString()+"Array", Toast.LENGTH_LONG).show()
                 if (A===1){
                     QUESTIONS.add(tweetText)
+                    current_question++
                 }
                 translated_text = tweetText
                 Toast.makeText(this@MainActivity, tweetText, Toast.LENGTH_LONG).show()
+                translated = true
             }
             override fun onFailure(statusCode: Int, headers: Array<out Header>?, responseString: String?, throwable: Throwable?) {
-                translated_text = "OnFailure"
+                Toast.makeText(this@MainActivity, "Oops..Something went wrong", Toast.LENGTH_LONG).show()
             }
         })
     }
@@ -390,7 +424,6 @@ class MainActivity : AppCompatActivity(), RecognizerListener, VocalizerListener{
     override fun onRecognitionDone(recognizer: Recognizer, recognition: Recognition) {
         updateResult(recognition.bestResultText)
         recognized = true
-        //updateProgress(0)
     }
 
     private fun updateResult(text: String) {
